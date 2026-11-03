@@ -80,7 +80,10 @@ Practice mode works without the server; duels, shelter, event and balances need 
 ```bash
 npm run validate   # 288 engine/level checks + 109 server checks (settlements, refunds, event)
 npm run e2e        # a real two-client duel against a running server
+npm run simulate   # 60-day economic simulation; writes docs/simulation.md
 ```
+
+The simulation shows the economy redistributes but concentrates: with a fixed supply, many accounts run out of balance, and skill-based matchmaking reduces it. Results are in [docs/simulation.md](docs/simulation.md).
 
 ## Architecture
 

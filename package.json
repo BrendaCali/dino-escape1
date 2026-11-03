@@ -10,7 +10,8 @@
     "validate": "tsx scripts/validate.ts && tsx scripts/validateServer.ts",
     "server": "tsx server/index.ts",
     "start": "npm run build && tsx server/index.ts",
-    "e2e": "tsx scripts/e2e.ts"
+    "e2e": "tsx scripts/e2e.ts",
+    "simulate": "tsx scripts/simulate.ts"
   },
   "dependencies": {
     "react": "^18.3.1",
