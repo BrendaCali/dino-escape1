@@ -193,4 +193,46 @@ ok(sp.winner === 1900 && sp.operation === 50 && sp.shelter === 50, 'Reparto 19 /
   w.dev(A.id, 'advance', 0);
   ok(w.event === null && w.ledger.bal('shelter') === 5000 && w.ledger.bal('event') === 0, 'Si nadie termina regresan los 50 DINO');
 }
+// ---- Rival DEMO y meteorito ----
+{
+  const w = mk();
+  const A = w.hello(null, "A");
+  w.createRoom(A.id, 1, dino(10));
+  w.dev(A.id, "demoRival", 0);
+  ok(roomOf(w, A.id).players.length === 2 && roomOf(w, A.id).players[1].name.includes("DEMO"), "El rival DEMO ocupa el segundo puesto");
+  ok(roomOf(w, A.id).players[1].state !== "desconectado", "El rival DEMO no figura como desconectado");
+  ok(throws(() => w.dev(A.id, "demoRival", 0)), "No se añade un segundo rival a una sala llena");
+  w.setReady(A.id, true);
+  now += CONFIG.countdownMs + 1;
+  w.tick();
+  ok(roomOf(w, A.id).status === "racing", "La partida contra el rival DEMO empieza");
+  now += 2 * 60_000;
+  w.tick();
+  now += CONFIG.tieMarginMs + 100;
+  w.tick();
+  const out = roomOf(w, A.id).outcome;
+  ok(out && out.kind === "win" && out.winnerId !== A.id, "Si el humano no resuelve, el rival DEMO gana tras su tiempo");
+  ok(w.ledger.total() === 0, "El libro conserva la suma tras un duelo con el rival DEMO");
+  const w2 = mk();
+  const P = w2.hello(null, "P");
+  const c2 = w2.createRoom(P.id, 1, dino(10));
+  w2.dev(P.id, "demoRival", 0);
+  w2.setReady(P.id, true);
+  now += CONFIG.countdownMs + 1;
+  now += 30_000;
+  w2.submitMatch(P.id, answer(levelOf(w2, c2)));
+  now += CONFIG.tieMarginMs + 100;
+  w2.tick();
+  ok(roomOf(w2, P.id).outcome?.winnerId === P.id, "El humano puede ganarle al rival DEMO");
+}
+{
+  const w = mk();
+  const A = w.hello(null, "A");
+  ok(w.shelterView().meteorSteps === 0, "El meteorito empieza lejos");
+  now += 50 * 60 * 60 * 1000;
+  ok(w.shelterView().meteorSteps === 2, "Se acerca 1 paso por cada 24 h sin duelo");
+  now += 200 * 24 * 60 * 60 * 1000;
+  ok(w.shelterView().meteorSteps === 5, "Se acerca como máximo 5 pasos");
+  ok(w.ledger.total() === 0 && w.shelterView().rescues === 0 && A.id.length > 0, "El meteorito no toca rescates ni fondos");
+}
 console.log(`✔ ${checks} comprobaciones del servidor superadas`);

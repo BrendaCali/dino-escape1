@@ -47,7 +47,7 @@ export function DuelScreen({ initialCode, dev, reducedMotion, onHelp, onBack }: 
     );
   }
   if (!room) return <Browse initialCode={initialCode} onBack={onBack} />;
-  if (room.status === 'waiting') return <Waiting room={room} />;
+  if (room.status === 'waiting') return <Waiting room={room} dev={dev} />;
   if (room.status === 'racing') return <Match room={room} dev={dev} reducedMotion={reducedMotion} onHelp={onHelp} />;
   return <Result room={room} onBack={onBack} />;
 }
@@ -111,7 +111,7 @@ function Browse({ initialCode, onBack }: { initialCode?: string; onBack: () => v
   );
 }
 
-function Waiting({ room }: { room: RoomView }) {
+function Waiting({ room, dev }: { room: RoomView; dev: boolean }) {
   const n = useNet();
   const now = useServerNow();
   const [err, setErr] = useState('');
@@ -154,6 +154,13 @@ function Waiting({ room }: { room: RoomView }) {
           <button className="btn primary big" disabled={room.players.length < 2} onClick={() => { play('click'); act('room.ready', { ready: !me.ready }, setErr); }}>
             {me.ready ? 'Quitar confirmación' : '¡Estoy listo!'}
           </button>
+          {dev && n.serverDev && room.players.length < 2 && (
+            <div className="devbox">
+              <strong>DEV</strong>
+              <button className="btn small" onClick={() => act('dev', { action: 'demoRival', arg: 0 }, setErr)}>Jugar contra rival DEMO</button>
+              <span className="tiny">Oponente simulado, solo en modo desarrollo.</span>
+            </div>
+          )}
           <div className="row">
             <button className="btn" onClick={() => copy(room.code, 'c')}>{copied === 'c' ? '¡Copiado!' : 'Copiar código'}</button>
             <button className="btn" onClick={() => copy(link, 'l')}>{copied === 'l' ? '¡Copiado!' : 'Copiar enlace'}</button>

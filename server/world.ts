@@ -4,7 +4,8 @@
  */
 import { randomBytes } from 'node:crypto';
 import type { Level } from '../src/game/types';
-import { makeVariant } from '../src/levels/variants';
+import { boardFromPlacements, simulate } from '../src/game/engine';
+import { exitOptions, makeVariant } from '../src/levels/variants';
 import { LEVELS } from '../src/levels';
 import { CONFIG, fmtDino, splitPot } from './config';
 import { Ledger } from './ledger';
@@ -21,6 +22,8 @@ export interface Player {
   token: string;
   name: string;
   roomCode: string | null;
+  /** Rival simulado del modo desarrollo. Nunca existe fuera de él. */
+  demo?: boolean;
 }
 
 type Phase = 'building' | 'running' | 'finished';
@@ -55,6 +58,8 @@ interface Room {
   valid: { id: string; t: number }[];
   decideAt: number | null;
   outcome: Outcome | null;
+  /** Momento en que el rival DEMO enviará su solución. */
+  demoAt?: number;
 }
 
 interface Attempt {
@@ -320,6 +325,7 @@ export class World {
         this.refundAll(room, 'la sala no se completó en 5 minutos', 'cancelled');
       } else if (room.status === 'racing') {
         try {
+          if (room.decideAt === null || now < room.decideAt) this.playDemo(room, now);
           if (room.decideAt !== null && now >= room.decideAt) this.decide(room);
           else if (room.decideAt === null && now > room.endAt + CONFIG.graceMs) this.refundAll(room, 'nadie completó el desafío', 'finished');
         } catch (e) {
@@ -451,6 +457,48 @@ export class World {
     return { ok: true, ms: a.ms };
   }
 
+  // ---------- rival de demostración (solo modo desarrollo) ----------
+  private demoBot(): Player {
+    let bot = [...this.players.values()].find((x) => x.demo);
+    if (!bot) {
+      const id = 'demo-bot';
+      bot = { id, token: randomBytes(16).toString('hex'), name: 'DEMO (simulado)', roomCode: null, demo: true };
+      this.players.set(id, bot);
+      this.byToken.set(bot.token, id);
+    }
+    return bot;
+  }
+
+  /** El rival DEMO ocupa el segundo puesto de tu sala y queda listo. Usa saldo de prueba propio. */
+  private addDemoRival(pid: string) {
+    const room = this.activeRoom(this.players.get(pid)!);
+    if (!room || room.status !== 'waiting' || room.players.length !== 1) fail('Necesitas una sala en espera con un solo jugador.');
+    const bot = this.demoBot();
+    const missing = room!.entry - this.ledger.bal(pa(bot.id));
+    if (missing > 0) this.ledger.settle(`DEMOGRANT-${bot.id}-${this.clock()}`, [{ kind: 'grant', from: 'mint', to: pa(bot.id), amount: missing, note: 'Saldo del rival DEMO (modo desarrollo)' }], this.clock());
+    this.reserve(room!, bot);
+    room!.players.find((x) => x.id === bot.id)!.ready = true;
+    this.note(`sala ${room!.code}: se une el rival DEMO`);
+  }
+
+  /** El rival DEMO envía una solución válida, a un ritmo que un humano puede superar. */
+  private playDemo(room: Room, now: number) {
+    const bot = room.players.find((x) => this.players.get(x.id)?.demo);
+    if (!bot || room.valid.some((v) => v.id === bot.id)) return;
+    if (room.demoAt === undefined) room.demoAt = room.startAt + Math.round(room.level.timeSec * 1000 * 0.6);
+    if (now < room.demoAt) return;
+    const lv = room.level;
+    const board = boardFromPlacements(lv, lv.solution);
+    const exit = exitOptions(lv).find((e) => simulate(lv, board, e).outcome === 'success');
+    if (!exit) return;
+    const sub = { placements: lv.solution.map((t) => ({ x: t.x, y: t.y, type: t.type, rot: t.rot })), exit };
+    try {
+      this.submitMatch(bot.id, sub);
+    } catch (e) {
+      this.note(`sala ${room.code}: el rival DEMO no pudo enviar: ${(e as Error).message}`);
+    }
+  }
+
   // ---------- modo desarrollo ----------
   dev(pid: string, op: string, arg: number): void {
     if (!CONFIG.dev) fail('El modo desarrollo está desactivado en este servidor.');
@@ -465,6 +513,8 @@ export class World {
       this.shelter.rescues += S.demoPreload.rescues;
       this.shelter.preloaded = true;
       this.shelter.lastRescueAt = now;
+    } else if (op === 'demoRival') {
+      this.addDemoRival(pid);
     } else if (op === 'meteor') {
       // Demostración: envejece la última actividad para ver acercarse el meteorito.
       this.shelter.lastRescueAt = (this.shelter.lastRescueAt ?? this.shelter.since ?? now) - Math.max(1, Math.min(5, Math.round(arg || 1))) * DAY_MS;
@@ -508,7 +558,7 @@ export class World {
         name: x.name,
         ready: x.ready,
         me: x.id === pid,
-        state: !this.connected.has(x.id) ? 'desconectado' : r.status === 'racing' ? x.phase : 'conectado',
+        state: !this.connected.has(x.id) && !this.players.get(x.id)?.demo ? 'desconectado' : r.status === 'racing' ? x.phase : 'conectado',
       })),
       outcome: r.outcome,
       myFinishMs: r.valid.find((v) => v.id === pid)?.t ?? null,

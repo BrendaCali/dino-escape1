@@ -78,7 +78,7 @@ Practice mode works without the server; duels, shelter, event and balances need 
 ## Verify it
 
 ```bash
-npm run validate   # 288 engine/level checks + 91 server checks (settlements, refunds, event)
+npm run validate   # 288 engine/level checks + 102 server checks (settlements, refunds, event)
 npm run e2e        # a real two-client duel against a running server
 ```
 
