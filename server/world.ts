@@ -43,6 +43,8 @@ interface Outcome {
   winnerGets: number;
   operation: number;
   shelter: number;
+  /** R7: el duelo superó el tope del par; se juega y se paga, pero no suma rescate ni aporte al refugio. */
+  capped?: boolean;
 }
 interface Room {
   code: string;
@@ -58,6 +60,8 @@ interface Room {
   valid: { id: string; t: number }[];
   decideAt: number | null;
   outcome: Outcome | null;
+  /** Momento en que entró el segundo jugador (R10). */
+  fullAt?: number;
   /** Momento en que el rival DEMO enviará su solución. */
   demoAt?: number;
 }
@@ -84,6 +88,7 @@ interface EventState {
 }
 
 const code = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
+const pairKey = (a: string, b: string) => [a, b].sort().join('|');
 const pa = (id: string) => `p:${id}`;
 const esc = (id: string) => `esc:${id}`;
 
@@ -92,7 +97,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export interface Persisted {
   ledger: LedgerSnapshot;
   players: Player[];
-  shelter: { rescues: number; preloaded: boolean; eventsOpened: number; lastRescueAt?: number | null; since?: number | null };
+  shelter: { rescues: number; preloaded: boolean; eventsOpened: number; lastRescueAt?: number | null; since?: number | null; pairs?: Record<string, number> };
   event: Omit<EventState, 'level'> | null;
   lastEvent: Omit<EventState, 'level'> | null;
 }
@@ -103,6 +108,8 @@ export class World {
   byToken = new Map<string, string>();
   rooms = new Map<string, Room>();
   connected = new Set<string>();
+  /** R9: si el libro deja de cuadrar, el sistema se bloquea y no admite salas nuevas. */
+  halted = false;
   shelter: Persisted["shelter"] = { rescues: 0, preloaded: false, eventsOpened: 0, lastRescueAt: null, since: null };
   event: EventState | null = null;
   lastEvent: Omit<EventState, 'level'> | null = null;
@@ -158,6 +165,7 @@ export class World {
     if (cur && (cur.status === 'waiting' || cur.status === 'racing')) fail('Ya estás en una sala.');
     if (!(CONFIG.duelLevels as readonly number[]).includes(levelId)) fail('Nivel no disponible para duelos.');
     if (!CONFIG.entryOptions.includes(entry as never)) fail('Entrada no permitida.');
+    if (this.halted) fail('Sistema bloqueado: el libro no cuadra. Avisa al equipo.');
     if (this.ledger.bal(pa(pid)) < entry) fail('Saldo disponible insuficiente.');
     const seed = Math.floor(Math.random() * 1e6);
     const room: Room = {
@@ -194,8 +202,10 @@ export class World {
     const room = this.rooms.get(c.trim().toUpperCase());
     if (!room || room.status !== 'waiting') return fail('Esa sala no existe o ya no admite jugadores.');
     if (room.players.length >= 2) fail('La sala está llena.');
+    if (this.halted) fail('Sistema bloqueado: el libro no cuadra. Avisa al equipo.');
     if (this.ledger.bal(pa(pid)) < room.entry) fail('Saldo disponible insuficiente.');
     this.reserve(room, p);
+    room.fullAt = this.clock();
     this.bump();
   }
 
@@ -295,24 +305,39 @@ export class World {
     const w = sorted[0].id;
     const l = room.players.find((x) => x.id !== w)!.id;
     const sp = splitPot(room.entry);
+    // R7: pasado el tope por par en el ciclo, el duelo se paga igual pero no suma rescate; el aporte del refugio va a operación.
+    const key = pairKey(w, l);
+    const demo = !!(this.players.get(w)?.demo || this.players.get(l)?.demo);
+    const pairs = (this.shelter.pairs ??= {});
+    const capped = !demo && (pairs[key] ?? 0) >= CONFIG.pairCap;
+    const toShelter = capped ? 0 : sp.shelter;
+    const toOperation = capped ? sp.operation + sp.shelter : sp.operation;
     const id = `SET-${room.code}`;
     const ok = this.ledger.settle(
       id,
       [
         { kind: 'payout', from: esc(w), to: pa(w), amount: room.entry, note: `Pago al ganador (tu aporte) · sala ${room.code}` },
         { kind: 'payout', from: esc(l), to: pa(w), amount: sp.winner - room.entry, note: `Pago al ganador (aporte del rival) · sala ${room.code}` },
-        { kind: 'fee_operation', from: esc(l), to: 'operation', amount: sp.operation, note: `Comisión de operación · sala ${room.code}` },
-        { kind: 'fee_shelter', from: esc(l), to: 'shelter', amount: sp.shelter, note: `Aporte al refugio · sala ${room.code}` },
+        { kind: 'fee_operation', from: esc(l), to: 'operation', amount: toOperation, note: capped ? `Comisión de operación (tope por par superado) · sala ${room.code}` : `Comisión de operación · sala ${room.code}` },
+        ...(toShelter > 0 ? [{ kind: 'fee_shelter', from: esc(l), to: 'shelter', amount: toShelter, note: `Aporte al refugio · sala ${room.code}` }] : []),
       ],
       this.clock(),
     );
     if (!ok) return;
     room.status = 'finished';
-    room.outcome = { kind: 'win', reason: 'primer resultado correcto', winnerId: w, times, settlementId: id, pot: sp.pot, winnerGets: sp.winner, operation: sp.operation, shelter: sp.shelter };
-    this.shelter.rescues += 1;
-    this.shelter.lastRescueAt = this.clock();
-    this.note(`sala ${room.code}: gana ${w}; refugio +1 rescate`);
-    this.maybeOpenEvent();
+    room.outcome = { kind: 'win', reason: 'primer resultado correcto', winnerId: w, times, settlementId: id, pot: sp.pot, winnerGets: sp.winner, operation: toOperation, shelter: toShelter, capped };
+    if (capped) this.note(`sala ${room.code}: gana ${w}; tope por par superado, no suma rescate`);
+    else {
+      pairs[key] = (pairs[key] ?? 0) + 1;
+      this.shelter.rescues += 1;
+      this.shelter.lastRescueAt = this.clock();
+      this.note(`sala ${room.code}: gana ${w}; refugio +1 rescate`);
+      this.maybeOpenEvent();
+    }
+    if (this.ledger.total() !== 0) {
+      this.halted = true;
+      this.note('R9: el libro no cuadra; sistema bloqueado');
+    }
     this.bump();
   }
 
@@ -323,6 +348,8 @@ export class World {
     for (const room of this.rooms.values()) {
       if (room.status === 'waiting' && now - room.createdAt > CONFIG.roomWaitMs) {
         this.refundAll(room, 'la sala no se completó en 5 minutos', 'cancelled');
+      } else if (room.status === 'waiting' && room.fullAt !== undefined && room.players.length === 2 && now - room.fullAt > CONFIG.readyMs && !room.players.every((x) => x.ready)) {
+        this.refundAll(room, 'no confirmaron "listo" en 60 s', 'cancelled');
       } else if (room.status === 'racing') {
         try {
           if (room.decideAt === null || now < room.decideAt) this.playDemo(room, now);
@@ -346,6 +373,7 @@ export class World {
     const now = this.clock();
     this.ledger.settle(`EVR-${this.shelter.eventsOpened + 1}`, [{ kind: 'event_reserve', from: 'shelter', to: 'event', amount: S.eventBudget, note: 'Reserva del evento comunitario' }], now);
     this.shelter.rescues -= S.goalRescues;
+    this.shelter.pairs = {};
     this.shelter.eventsOpened += 1;
     const cycle = this.shelter.eventsOpened;
     const levelId = S.eventLevels[(cycle - 1) % S.eventLevels.length];
@@ -478,6 +506,7 @@ export class World {
     if (missing > 0) this.ledger.settle(`DEMOGRANT-${bot.id}-${this.clock()}`, [{ kind: 'grant', from: 'mint', to: pa(bot.id), amount: missing, note: 'Saldo del rival DEMO (modo desarrollo)' }], this.clock());
     this.reserve(room!, bot);
     room!.players.find((x) => x.id === bot.id)!.ready = true;
+    room!.fullAt = this.clock();
     this.note(`sala ${room!.code}: se une el rival DEMO`);
   }
 
@@ -549,6 +578,9 @@ export class World {
       split: sp,
       createdAt: r.createdAt,
       expiresAt: r.createdAt + CONFIG.roomWaitMs,
+      readyDeadline: r.fullAt !== undefined && r.status === 'waiting' ? r.fullAt + CONFIG.readyMs : null,
+      pairDuels: this.pairDuels(r),
+      pairCap: CONFIG.pairCap,
       startAt: r.startAt,
       endAt: r.endAt,
       serverNow: this.clock(),
@@ -589,6 +621,12 @@ export class World {
   }
 
   /** Pasos visuales que el meteorito se ha acercado: 1 por cada 24 h sin duelo válido, máximo 5. Solo es animación. */
+  /** Duelos que ya cuentan en este ciclo entre los dos jugadores de la sala (R7). */
+  private pairDuels(r: Room) {
+    if (r.players.length < 2) return 0;
+    return this.shelter.pairs?.[pairKey(r.players[0].id, r.players[1].id)] ?? 0;
+  }
+
   private meteorSteps() {
     const now = this.clock();
     this.shelter.since ??= now;

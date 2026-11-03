@@ -28,6 +28,7 @@ export interface Outcome {
   winnerGets: number;
   operation: number;
   shelter: number;
+  capped?: boolean;
 }
 export interface RoomView {
   code: string;
@@ -40,6 +41,11 @@ export interface RoomView {
   split: { pot: number; operation: number; shelter: number; winner: number };
   createdAt: number;
   expiresAt: number;
+  /** R10: límite para que ambos confirmen "listo" (null si la sala no está llena). */
+  readyDeadline: number | null;
+  /** R7: duelos de este par ya contados en el ciclo y tope. */
+  pairDuels: number;
+  pairCap: number;
   startAt: number;
   endAt: number;
   serverNow: number;

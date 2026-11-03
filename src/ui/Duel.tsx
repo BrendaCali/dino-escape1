@@ -150,6 +150,8 @@ function Waiting({ room, dev }: { room: RoomView; dev: boolean }) {
             })}
           </ul>
           <p className="tiny">Aporte reservado: <strong>{fmtD(room.entry)}</strong> cada uno. Saldo disponible: {fmtD(n.view!.wallet.available)} · bloqueado: {fmtD(n.view!.wallet.locked)}.</p>
+          {room.readyDeadline !== null && <p className="tiny">Confirma "listo" en <strong>{fmtCountdown(room.readyDeadline - now)}</strong> o la sala se cancela y se devuelven los aportes.</p>}
+          {room.pairDuels >= room.pairCap && <p className="banner small-banner" role="note">Ya jugaste {room.pairDuels} duelos que cuentan con este rival en este ciclo. Puedes jugar, pero este duelo no sumará rescate ni aporte al refugio.</p>}
           <p className="tiny">La sala se cancela en <strong>{fmtCountdown(room.expiresAt - now)}</strong> si no se completa; se devuelven los aportes.</p>
           <button className="btn primary big" disabled={room.players.length < 2} onClick={() => { play('click'); act('room.ready', { ready: !me.ready }, setErr); }}>
             {me.ready ? 'Quitar confirmación' : '¡Estoy listo!'}

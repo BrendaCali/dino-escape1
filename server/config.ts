@@ -20,6 +20,10 @@ export const CONFIG = {
 
   roomWaitMs: 5 * 60_000,
   countdownMs: 4_000,
+  /** R10: con la sala llena, ambos deben confirmar "listo" en este tiempo o se cancela y se devuelve. */
+  readyMs: 60_000,
+  /** R7: duelos por par de cuentas y ciclo que cuentan para rescate y aporte al refugio. */
+  pairCap: 3,
   /** Margen de empate sobre tiempos de finalización medidos por el servidor. */
   tieMarginMs: 500,
   /** Tolerancia de red tras el límite de tiempo. */

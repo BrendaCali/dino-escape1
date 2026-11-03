@@ -235,4 +235,40 @@ ok(sp.winner === 1900 && sp.operation === 50 && sp.shelter === 50, 'Reparto 19 /
   ok(w.shelterView().meteorSteps === 5, "Se acerca como máximo 5 pasos");
   ok(w.ledger.total() === 0 && w.shelterView().rescues === 0 && A.id.length > 0, "El meteorito no toca rescates ni fondos");
 }
+// ---- Antiabuso: R7, R9, R10 ----
+{
+  const w = mk();
+  const A = w.hello(null, "A");
+  const B = w.hello(null, "B");
+  w.dev(A.id, "grant", 100000);
+  w.dev(B.id, "grant", 100000);
+  for (let i = 0; i < CONFIG.pairCap; i++) winDuel(w, A.id, B.id);
+  ok(w.shelterView().rescues === CONFIG.pairCap && w.ledger.bal("shelter") === CONFIG.pairCap * sp.shelter, "Los primeros duelos del par suman rescate y aporte");
+  const code = winDuel(w, A.id, B.id);
+  const o = (w.rooms.get(code) as unknown as { outcome: { capped?: boolean; shelter: number; operation: number } }).outcome;
+  ok(o.capped === true && o.shelter === 0 && o.operation === sp.operation + sp.shelter, "El duelo sobre el tope no suma al refugio; su aporte va a operación");
+  ok(w.shelterView().rescues === CONFIG.pairCap, "El duelo sobre el tope no suma rescate");
+  ok(w.ledger.total() === 0, "El libro conserva la suma con el tope por par");
+  const C = w.hello(null, "C");
+  w.dev(C.id, "grant", 100000);
+  winDuel(w, A.id, C.id);
+  ok(w.shelterView().rescues === CONFIG.pairCap + 1, "Otro rival sí suma");
+}
+{
+  const w = mk();
+  const A = w.hello(null, "A");
+  const B = w.hello(null, "B");
+  const code = w.createRoom(A.id, 1, dino(10));
+  w.joinRoom(B.id, code);
+  w.setReady(A.id, true);
+  now += CONFIG.readyMs + 1;
+  w.tick();
+  ok(roomOf(w, A.id).status === "cancelled" && w.ledger.bal("p:" + A.id) === CONFIG.initialGrant, "R10: sin confirmar en 60 s se cancela y se devuelve");
+}
+{
+  const w = mk();
+  const A = w.hello(null, "A");
+  (w as unknown as { halted: boolean }).halted = true;
+  ok(throws(() => w.createRoom(A.id, 1, dino(10))), "R9: con el sistema bloqueado no se crean salas");
+}
 console.log(`✔ ${checks} comprobaciones del servidor superadas`);

@@ -78,7 +78,7 @@ Practice mode works without the server; duels, shelter, event and balances need 
 ## Verify it
 
 ```bash
-npm run validate   # 288 engine/level checks + 102 server checks (settlements, refunds, event)
+npm run validate   # 288 engine/level checks + 109 server checks (settlements, refunds, event)
 npm run e2e        # a real two-client duel against a running server
 ```
 
@@ -96,6 +96,14 @@ All money rules live in `server/config.ts`: entry, fees, tie margin, room wait, 
 
 Dev mode (`?dev=1`, only against a development server) opens any level, shows solutions, grants test balance,
 preloads the shelter to 99 rescues / 49.5 DINO (labelled as a demo) and speeds up event deadlines.
+
+## Anti-abuse rules
+
+- One active room per player; you cannot join your own room.
+- **Pair cap:** at most 3 duels per pair of accounts per shelter cycle add a rescue and a shelter contribution. Further duels are played and paid normally, but the shelter share goes to operation instead. The room shows a warning. This reduces farming; it does not eliminate it.
+- **Ready window:** once both players are in, each must confirm "ready" within 60 s or the room is cancelled and refunded.
+- **Ledger invariant:** after every settlement the ledger must sum to zero; if not, the system halts and accepts no new rooms.
+- Impossible submissions (too fast, wrong pieces, invalid path) are rejected and logged.
 
 ## What is and is not on-chain
 
