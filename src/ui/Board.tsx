@@ -1,10 +1,10 @@
-import { memo, useRef } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import type { DragEvent, MouseEvent, PointerEvent } from 'react';
 import { DX, DY } from '../game/geometry';
 import { cellMap, isEditable, poseAt } from '../game/engine';
 import type { Snapshot } from '../game/session';
 import type { Board as BoardData, DinoId, Level, PieceType } from '../game/types';
-import { DINO_COLORS, DinoArt, HomeArt, PortalArt, RockArt, StartArt, TileArt } from './art';
+import { DINO_COLORS, MeteorDef, DinoArt, HomeArt, PortalArt, RockArt, StartArt, TileArt } from './art';
 
 const hash = (x: number, y: number) => (x * 73856093) ^ (y * 19349663);
 
@@ -106,6 +106,7 @@ export interface BoardProps {
 export function BoardView({ level, snap, cellPx, panMode, hover, onHover, onCell, onDropPiece }: BoardProps) {
   const n = level.size;
   const ref = useRef<SVGSVGElement>(null);
+  const meteorCells = useMemo(() => Array.from({ length: n * n }, (_, i) => i).sort((a, b) => ((a * 2654435761) >>> 0) - ((b * 2654435761) >>> 0)), [n]);
 
   const cellFrom = (cx: number, cy: number) => {
     const r = ref.current!.getBoundingClientRect();
@@ -176,6 +177,7 @@ export function BoardView({ level, snap, cellPx, panMode, hover, onHover, onCell
       role="img"
       aria-label={`Tablero de ${n} por ${n}`}
     >
+      <defs><MeteorDef /></defs>
       <Ground level={level} />
       <Fixed level={level} />
       <Tiles level={level} board={snap.board} />
@@ -233,7 +235,11 @@ export function BoardView({ level, snap, cellPx, panMode, hover, onHover, onCell
           </g>
         ))}
 
-      {losing && <rect width={n * 100} height={n * 100} fill="#1d2a3a" opacity={snap.bombProgress * 0.45} pointerEvents="none" />}
+      {losing && <rect width={n * 100} height={n * 100} fill="#1d2a3a" opacity={snap.bombProgress * 0.4} pointerEvents="none" />}
+      {losing &&
+        meteorCells.slice(0, Math.floor(snap.bombProgress * n * n * 0.6)).map((i) => (
+          <use key={i} href="#meteor-def" className="meteor-fall" x={(i % n) * 100} y={Math.floor(i / n) * 100} pointerEvents="none" />
+        ))}
     </svg>
   );
 }

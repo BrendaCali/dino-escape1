@@ -63,6 +63,8 @@ export interface ShelterView {
   goalRescues: number;
   goalFund: number;
   stage: number;
+  /** Pasos visuales que se acerca el meteorito (0–5). Solo animación. */
+  meteorSteps: number;
   preloaded: boolean;
   eventsOpened: number;
   funds: { operation: number; shelter: number; event: number };

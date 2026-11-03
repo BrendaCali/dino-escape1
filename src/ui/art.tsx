@@ -331,6 +331,19 @@ export function BombDef() {
   );
 }
 
+/** Meteorito que cae sobre una casilla cuando se acaba el tiempo. */
+export function MeteorDef() {
+  return (
+    <g id="meteor-def">
+      <path d="M52 52 L96 -6 L74 38 L104 28 L60 62 Z" fill="#ff8a2a" opacity="0.85" />
+      <circle cx="50" cy="54" r="28" fill="#ffb13a" opacity="0.35" />
+      <circle cx="50" cy="54" r="21" fill="#6b5a52" stroke="#3b2c26" strokeWidth="3.5" />
+      <circle cx="43" cy="48" r="5" fill="#51423b" /><circle cx="57" cy="60" r="4" fill="#51423b" />
+      <ellipse cx="42" cy="44" rx="6" ry="3" fill="#fff" opacity="0.28" transform="rotate(-30 42 44)" />
+    </g>
+  );
+}
+
 /** Volcán decorativo que queda fuera del tablero. */
 export function Volcano({ style }: { style?: CSSProperties }) {
   return (

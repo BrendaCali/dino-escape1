@@ -82,10 +82,12 @@ const code = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ2345
 const pa = (id: string) => `p:${id}`;
 const esc = (id: string) => `esc:${id}`;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export interface Persisted {
   ledger: LedgerSnapshot;
   players: Player[];
-  shelter: { rescues: number; preloaded: boolean; eventsOpened: number };
+  shelter: { rescues: number; preloaded: boolean; eventsOpened: number; lastRescueAt?: number | null; since?: number | null };
   event: Omit<EventState, 'level'> | null;
   lastEvent: Omit<EventState, 'level'> | null;
 }
@@ -96,7 +98,7 @@ export class World {
   byToken = new Map<string, string>();
   rooms = new Map<string, Room>();
   connected = new Set<string>();
-  shelter = { rescues: 0, preloaded: false, eventsOpened: 0 };
+  shelter: Persisted["shelter"] = { rescues: 0, preloaded: false, eventsOpened: 0, lastRescueAt: null, since: null };
   event: EventState | null = null;
   lastEvent: Omit<EventState, 'level'> | null = null;
   log: string[] = [];
@@ -303,6 +305,7 @@ export class World {
     room.status = 'finished';
     room.outcome = { kind: 'win', reason: 'primer resultado correcto', winnerId: w, times, settlementId: id, pot: sp.pot, winnerGets: sp.winner, operation: sp.operation, shelter: sp.shelter };
     this.shelter.rescues += 1;
+    this.shelter.lastRescueAt = this.clock();
     this.note(`sala ${room.code}: gana ${w}; refugio +1 rescate`);
     this.maybeOpenEvent();
     this.bump();
@@ -461,6 +464,10 @@ export class World {
       this.ledger.settle(`DEVPRELOAD-${now}`, [{ kind: 'demo_preload', from: 'mint', to: 'shelter', amount: S.demoPreload.fund, note: 'DATOS PRECARGADOS DE DEMOSTRACIÓN' }], now);
       this.shelter.rescues += S.demoPreload.rescues;
       this.shelter.preloaded = true;
+      this.shelter.lastRescueAt = now;
+    } else if (op === 'meteor') {
+      // Demostración: envejece la última actividad para ver acercarse el meteorito.
+      this.shelter.lastRescueAt = (this.shelter.lastRescueAt ?? this.shelter.since ?? now) - Math.max(1, Math.min(5, Math.round(arg || 1))) * DAY_MS;
     } else if (op === 'advance') {
       const e = this.event;
       if (!e) fail('No hay evento activo.');
@@ -531,6 +538,14 @@ export class World {
     };
   }
 
+  /** Pasos visuales que el meteorito se ha acercado: 1 por cada 24 h sin duelo válido, máximo 5. Solo es animación. */
+  private meteorSteps() {
+    const now = this.clock();
+    this.shelter.since ??= now;
+    const ref = this.shelter.lastRescueAt ?? this.shelter.since;
+    return Math.max(0, Math.min(5, Math.floor((now - ref) / DAY_MS)));
+  }
+
   shelterView() {
     const S = CONFIG.shelter;
     const showing = this.event && this.event.phase !== 'closed' ? S.goalRescues : this.shelter.rescues;
@@ -541,6 +556,7 @@ export class World {
       goalRescues: S.goalRescues,
       goalFund: S.goalFund,
       stage,
+      meteorSteps: this.meteorSteps(),
       preloaded: this.shelter.preloaded,
       eventsOpened: this.shelter.eventsOpened,
       funds: {

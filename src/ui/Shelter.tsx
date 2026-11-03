@@ -61,13 +61,31 @@ function Piece({ it }: { it: Item }) {
   }
 }
 
-export function ShelterScene({ rescues }: { rescues: number }) {
+/** Meteorito que amenaza el refugio: cada rescate lo aleja y cada 24 h sin duelos se acerca un paso (solo visual). */
+function Meteor({ rescues, steps }: { rescues: number; steps: number }) {
+  const far = Math.max(0, Math.min(1, rescues / 100 - steps * 0.08));
+  const x = 250 + far * 360;
+  const y = 118 - far * 84;
+  const k = 1.5 - far * 1.15;
+  return (
+    <g className="meteor" style={{ transform: `translate(${x}px, ${y}px) scale(${k})` }} aria-hidden="true">
+      <path d="M0 -6 L120 -70 L96 -30 L132 -34 L20 14 Z" fill="url(#meteorTail)" />
+      <circle r="30" fill="#ffb13a" opacity="0.35" />
+      <circle r="22" fill="#6b5a52" stroke="#3b2c26" strokeWidth="3" />
+      <circle cx="-7" cy="-6" r="5" fill="#51423b" /><circle cx="8" cy="7" r="4" fill="#51423b" /><circle cx="5" cy="-12" r="2.5" fill="#51423b" />
+      <ellipse cx="-9" cy="-10" rx="6" ry="3" fill="#fff" opacity="0.25" transform="rotate(-30 -9 -10)" />
+    </g>
+  );
+}
+
+export function ShelterScene({ rescues, meteorSteps = 0 }: { rescues: number; meteorSteps?: number }) {
   return (
     <svg viewBox="0 0 640 300" width="100%" role="img" aria-label={`Refugio reconstruido: ${rescues} de 100 rescates`} className="shelter-scene">
       <defs>
         <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7ec8ee" /><stop offset="1" stopColor="#ffe9b8" /></linearGradient>
         <linearGradient id="hillA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8ccf6a" /><stop offset="1" stopColor="#5ea84a" /></linearGradient>
         <linearGradient id="hillB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6fbb55" /><stop offset="1" stopColor="#3f8a3a" /></linearGradient>
+        <linearGradient id="meteorTail" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#ff7a2a" stopOpacity="0.9" /><stop offset="1" stopColor="#ffd36b" stopOpacity="0" /></linearGradient>
         <radialGradient id="sun"><stop offset="0" stopColor="#fff6c0" /><stop offset="1" stopColor="#ffd36b" /></radialGradient>
         <radialGradient id="domeGlow"><stop offset="0" stopColor="#bff0ff" stopOpacity="0.05" /><stop offset="1" stopColor="#7fd4ff" stopOpacity="0.35" /></radialGradient>
       </defs>
@@ -75,6 +93,7 @@ export function ShelterScene({ rescues }: { rescues: number }) {
       <circle cx="545" cy="58" r="52" fill="#fff1b0" opacity="0.35" />
       <circle cx="545" cy="58" r="30" fill="url(#sun)" />
       <g fill="#fff" opacity="0.85"><ellipse cx="120" cy="60" rx="46" ry="14" /><ellipse cx="150" cy="50" rx="30" ry="14" /><ellipse cx="380" cy="42" rx="40" ry="11" /></g>
+      <Meteor rescues={rescues} steps={meteorSteps} />
       <path d="M0 175 L70 110 L120 150 L190 90 L270 170 L330 130 L420 180 V230 H0Z" fill="#9a8fb8" opacity="0.55" />
       <path d="M440 190 L505 95 L575 190Z" fill="#8c5a44" opacity="0.7" /><path d="M492 115 L505 95 L518 115 Q505 124 492 115Z" fill="#f08a3c" opacity="0.85" />
       <path d="M0 215 Q120 175 260 205 T640 195 V300 H0Z" fill="url(#hillA)" />
@@ -112,7 +131,8 @@ export function ShelterScreen({ dev, onBack, onEvent }: { dev: boolean; onBack: 
       {s.preloaded && <p className="banner small-banner" role="note">Datos precargados de demostración: {s.goalRescues - 1} rescates y 49,5 DINO añadidos por el modo desarrollo. No son jugadores reales.</p>}
       <div className="shelter-grid">
         <section className="card-plain wide">
-          <ShelterScene rescues={s.shownRescues} />
+          <ShelterScene rescues={s.shownRescues} meteorSteps={s.meteorSteps} />
+          <p className="tiny">{s.meteorSteps > 0 ? `El meteorito se acerca: ${s.meteorSteps} ${s.meteorSteps === 1 ? "paso" : "pasos"} por días sin duelos. El próximo rescate lo aleja.` : "Cada rescate aleja el meteorito. Si pasan 24 h sin duelos válidos, se acerca un paso (solo visual)."}</p>
           <ol className="stages" aria-label="Etapas">
             {STAGES.map((t, i) => <li key={t} className={i + 1 < s.stage || s.stage === 5 ? 'ok' : i + 1 === s.stage ? 'now' : ''}>{i + 1 < s.stage || s.stage === 5 ? '✔ ' : ''}{t}</li>)}
           </ol>
@@ -139,6 +159,7 @@ export function ShelterScreen({ dev, onBack, onEvent }: { dev: boolean; onBack: 
             <div className="devbox">
               <strong>DEV</strong>
               <button className="btn small" disabled={s.preloaded} onClick={() => devCall('preload')}>Precargar 99 rescates y 49,5</button>
+              <button className="btn small" onClick={() => devCall('meteor', 1)}>Meteorito +24 h sin duelos</button>
               <button className="btn small" disabled={!ev} onClick={() => devCall('advance')}>Acelerar plazo del evento</button>
               {err && <span className="tiny err">{err}</span>}
             </div>

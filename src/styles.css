@@ -345,3 +345,10 @@ body { background: radial-gradient(1200px 500px at 85% -10%, rgba(255, 244, 190,
 .dino-walk .leg-b { animation: step .3s ease-in-out infinite reverse; }
 .reduce-motion .dino-walk .leg-a, .reduce-motion .dino-walk .leg-b { animation: none; }
 @keyframes step { 50% { transform: rotate(18deg); } }
+
+/* Meteorito */
+.shelter-scene .meteor { transition: transform 1.2s ease-in-out; }
+.reduce-motion .shelter-scene .meteor { transition: none; }
+@keyframes meteor-in { from { transform: translate(70px, -160px); opacity: 0; } to { transform: translate(0, 0); opacity: 1; } }
+.meteor-fall { animation: meteor-in .35s ease-in; }
+.reduce-motion .meteor-fall { animation: none; }
