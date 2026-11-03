@@ -76,7 +76,7 @@ function Browse({ initialCode, onBack }: { initialCode?: string; onBack: () => v
           </label>
           <label className="field"><span>Entrada por jugador (DINO de prueba)</span>
             <select value={entry} onChange={(e) => setEntry(Number(e.target.value))}>
-              {cfg.entry.map((x) => <option key={x} value={x}>{fmtD(x)}</option>)}
+              {cfg.entry.map((x) => <option key={x} value={x}>{fmtD(x)}{cfg.entry.length > 1 ? ` · ${x <= 500 ? 'mesa pequeña' : x >= 2500 ? 'mesa alta' : 'mesa estándar'}` : ''}</option>)}
             </select>
           </label>
           <FeeTable entry={entry} cfg={cfg} />

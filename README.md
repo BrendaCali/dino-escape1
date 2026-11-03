@@ -78,7 +78,7 @@ Practice mode works without the server; duels, shelter, event and balances need 
 ## Verify it
 
 ```bash
-npm run validate   # 288 engine/level checks + 109 server checks (settlements, refunds, event)
+npm run validate   # 288 engine/level checks + 116 server checks (settlements, refunds, event)
 npm run e2e        # a real two-client duel against a running server
 npm run simulate   # 60-day economic simulation; writes docs/simulation.md
 ```
@@ -99,6 +99,14 @@ All money rules live in `server/config.ts`: entry, fees, tie margin, room wait, 
 
 Dev mode (`?dev=1`, only against a development server) opens any level, shows solutions, grants test balance,
 preloads the shelter to 99 rescues / 49.5 DINO (labelled as a demo) and speeds up event deadlines.
+
+## Entry tables
+
+By default there is one table (10 DINO), exactly as specified. Start the server with `DINO_TABLES=1` to enable three tables (5, 10 and 25 DINO) with the same 5 % fee, so newer players risk less. It is configuration only: the rules and the ledger do not change.
+
+```bash
+DINO_TABLES=1 npm run server
+```
 
 ## Anti-abuse rules
 

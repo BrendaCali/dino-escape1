@@ -271,4 +271,15 @@ ok(sp.winner === 1900 && sp.operation === 50 && sp.shelter === 50, 'Reparto 19 /
   (w as unknown as { halted: boolean }).halted = true;
   ok(throws(() => w.createRoom(A.id, 1, dino(10))), "R9: con el sistema bloqueado no se crean salas");
 }
+// ---- Mesas por nivel de entrada ----
+{
+  for (const e of [5, 10, 25]) {
+    const m = splitPot(dino(e));
+    ok(m.pot === dino(e) * 2 && m.operation + m.shelter + m.winner === m.pot, "El reparto de la mesa de " + e + " suma el bote");
+    ok(m.operation * 2 === m.shelter * 2 && (m.operation + m.shelter) * 20 === m.pot, "La comisión de la mesa de " + e + " es el 5 %");
+  }
+  const w = mk();
+  const A = w.hello(null, "A");
+  if (CONFIG.entryOptions.length === 1) ok(throws(() => w.createRoom(A.id, 1, dino(5))), "Por defecto solo existe la mesa de 10 DINO");
+}
 console.log(`✔ ${checks} comprobaciones del servidor superadas`);

@@ -12,8 +12,11 @@ export const CONFIG = {
   dev: process.env.NODE_ENV !== 'production' || process.env.DINO_DEV === '1',
 
   initialGrant: dino(100),
-  /** Entradas permitidas por jugador. Parámetro inicial: 10 DINO. */
-  entryOptions: [dino(10)],
+  /**
+   * Entradas permitidas por jugador. Por defecto una sola mesa de 10 DINO (la de la spec).
+   * Con DINO_TABLES=1 se activan las mesas de 5, 10 y 25 con la misma comisión del 5 %.
+   */
+  entryOptions: (process.env.DINO_TABLES === '1' ? [dino(5), dino(10), dino(25)] : [dino(10)]) as number[],
   /** Comisiones en puntos básicos del fondo (250 = 2,5 %). */
   operationBp: 250,
   shelterBp: 250,
