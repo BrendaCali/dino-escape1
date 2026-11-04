@@ -352,3 +352,15 @@ body { background: radial-gradient(1200px 500px at 85% -10%, rgba(255, 244, 190,
 @keyframes meteor-in { from { transform: translate(70px, -160px); opacity: 0; } to { transform: translate(0, 0); opacity: 1; } }
 .meteor-fall { animation: meteor-in .35s ease-in; }
 .reduce-motion .meteor-fall { animation: none; }
+
+/* Barra rápida: solo en pantallas angostas, para no bajar al panel mientras se construye */
+.quickbar { display: none; }
+@media (max-width: 980px) {
+  .quickbar { display: flex; gap: 4px; flex-wrap: nowrap; position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 40; padding: 8px; justify-content: center; align-items: center; background: rgba(255, 247, 228, .96); border: 3px solid var(--panel-edge); border-radius: 18px; box-shadow: 0 6px 0 rgba(120, 80, 30, .35), 0 10px 24px rgba(0, 0, 0, .25); }
+  .qb { min-width: 40px; height: 44px; padding: 0 4px; flex: 0 1 auto; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; font: inherit; font-weight: 800; font-size: 20px; line-height: 1; color: #3b2a14; background: #fff; border: 3px solid var(--panel-edge); border-radius: 12px; cursor: pointer; }
+  .qb small { font-size: 11px; font-weight: 700; }
+  .qb.on { background: #ffe08a; outline: 3px solid #f7973a; }
+  .qb.go { background: #f7973a; color: #fff; border-color: #c4640f; }
+  .qb:disabled { opacity: .4; }
+  .play-area { padding-bottom: 84px; }
+}

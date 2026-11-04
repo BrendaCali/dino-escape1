@@ -447,6 +447,26 @@ export function Game({ level, ledger, completedBefore, dev, reducedMotion, hasNe
             </div>
           )}
         </aside>
+
+        {canEdit && (
+          <div className="quickbar" role="toolbar" aria-label="Controles rápidos">
+            {PIECE_TYPES.filter((t) => level.inventory[t] > 0).map((t) => {
+              const sel = snap.sel?.type === t;
+              const left = snap.left[t];
+              return (
+                <button key={t} className={`qb piece-qb${sel ? ' on' : ''}`} disabled={left <= 0 && !sel} onClick={() => choose(t)} aria-pressed={sel} aria-label={`${PIECE_NAMES[t]}, quedan ${left}`}>
+                  <PieceIcon type={t} rot={sel ? snap.sel!.rot : 0} arrow={level.teeArrow} size={30} />
+                  <small>×{left}</small>
+                </button>
+              );
+            })}
+            <button className="qb" disabled={!snap.sel} onClick={() => rotate(-1)} aria-label="Girar a la izquierda">↺</button>
+            <button className="qb" disabled={!snap.sel} onClick={() => rotate(1)} aria-label="Girar a la derecha">↻</button>
+            <button className={`qb${snap.tool === 'remove' ? ' on' : ''}`} onClick={() => { session.setTool(snap.tool === 'remove' ? 'place' : 'remove'); play('click'); }} aria-pressed={snap.tool === 'remove'} aria-label="Recuperar pieza">⌫</button>
+            <button className="qb" disabled={!snap.canUndo} onClick={() => { session.undo(); play('remove'); }} aria-label="Deshacer">↶</button>
+            <button className="qb go" onClick={() => { play('run'); session.run(now()); }} aria-label="Correr">▶</button>
+          </div>
+        )}
       </div>
 
       {!online && (phase === 'won' || phase === 'lost') && (
