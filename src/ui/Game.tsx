@@ -18,7 +18,12 @@ export const fmtTime = (s: number) => {
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 };
 
-const defaultCell = (n: number) => (n <= 6 ? 76 : n <= 8 ? 66 : n <= 10 ? 56 : n <= 12 ? 48 : n <= 15 ? 42 : n <= 20 ? 36 : 34);
+const defaultCell = (n: number) => {
+  const ideal = n <= 6 ? 76 : n <= 8 ? 66 : n <= 10 ? 56 : n <= 12 ? 48 : n <= 15 ? 42 : n <= 20 ? 36 : 34;
+  // En pantallas angostas el tablero debe caber sin desplazarse (queda margen para el marco).
+  const fit = typeof window === 'undefined' ? ideal : Math.floor((window.innerWidth - 72) / n);
+  return Math.max(30, Math.min(ideal, fit));
+};
 
 export interface GameProps {
   level: Level;
