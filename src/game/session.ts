@@ -285,6 +285,19 @@ export class GameSession {
     return true;
   }
 
+  /** Gira una pieza ya colocada (sin gastar inventario). */
+  rotateAt(x: number, y: number, dir: 1 | -1) {
+    if (!this.editable || !isEditable(this.level, x, y)) return false;
+    const i = y * this.level.size + x;
+    const t = this.board[i];
+    if (!t) return false;
+    this.pushHistory();
+    this.board = this.board.slice();
+    this.board[i] = { type: t.type, rot: (((t.rot + dir) % 4) + 4) % 4 };
+    this.refresh(this.lastNow);
+    return true;
+  }
+
   undo() {
     if (!this.editable || this.history.length === 0) return;
     this.board = this.history.pop()!;

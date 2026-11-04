@@ -172,6 +172,11 @@ export function Game({ level, ledger, completedBefore, dev, reducedMotion, hasNe
     play('rotate');
   }, [session]);
 
+  /** Menú junto a una pieza ya puesta: girar a un lado, al otro o quitarla. */
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (snap.sel || snap.phase !== 'building' || snap.tool === 'remove') setMenu(null);
+  }, [snap.sel, snap.phase, snap.tool]);
   const onCell = (x: number, y: number, secondary: boolean) => {
     if (!isEditable(level, x, y) && snap.phase === 'building') {
       play('error');
@@ -185,6 +190,14 @@ export function Game({ level, ledger, completedBefore, dev, reducedMotion, hasNe
       if (ok) play('remove');
       return;
     }
+    const here = snap.board[y * n + x];
+    const same = !!here && !!session.sel && session.sel.type === here.type && session.sel.rot === here.rot;
+    if (!secondary && snap.phase === 'building' && session.tool === 'place' && here && (!session.sel || same)) {
+      setMenu(menu && menu.x === x && menu.y === y ? null : { x, y });
+      play('click');
+      return;
+    }
+    setMenu(null);
     const wasRemove = session.tool === 'remove' || !session.sel;
     if (session.placeAt(x, y, now())) play(wasRemove ? 'remove' : 'place');
   };
@@ -318,6 +331,19 @@ export function Game({ level, ledger, completedBefore, dev, reducedMotion, hasNe
               onCell={onCell}
               onDropPiece={onDropPiece}
             />
+            {menu && snap.board[menu.y * n + menu.x] && canEdit && (
+              <div
+                className="tile-menu"
+                role="toolbar"
+                aria-label="Opciones de la pieza"
+                style={{ left: Math.max(70, Math.min(n * cellPx - 70, (menu.x + 0.5) * cellPx)), top: menu.y === 0 ? (menu.y + 1) * cellPx + 6 : menu.y * cellPx - 52 }}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <button onClick={() => { session.rotateAt(menu.x, menu.y, -1); play('rotate'); }} aria-label="Girar a la izquierda">↺</button>
+                <button onClick={() => { session.rotateAt(menu.x, menu.y, 1); play('rotate'); }} aria-label="Girar a la derecha">↻</button>
+                <button className="x" onClick={() => { session.setTool('remove'); session.placeAt(menu.x, menu.y, now()); session.setTool('place'); setMenu(null); play('remove'); }} aria-label="Quitar pieza">✕</button>
+              </div>
+            )}
           </div>
 
           {phase === 'ready' && (

@@ -364,3 +364,9 @@ body { background: radial-gradient(1200px 500px at 85% -10%, rgba(255, 244, 190,
   .qb:disabled { opacity: .4; }
   .play-area { padding-bottom: 84px; }
 }
+
+/* Menú junto a una pieza ya colocada */
+.tile-menu { position: absolute; z-index: 6; display: flex; gap: 4px; padding: 4px; transform: translateX(-50%); background: #fff7e4; border: 3px solid var(--panel-edge); border-radius: 14px; box-shadow: 0 4px 0 rgba(120, 80, 30, .35), 0 8px 18px rgba(0, 0, 0, .25); }
+.tile-menu button { width: 42px; height: 42px; font: inherit; font-size: 22px; font-weight: 800; line-height: 1; color: #3b2a14; background: #fff; border: 2px solid var(--panel-edge); border-radius: 10px; cursor: pointer; }
+.tile-menu button.x { color: #fff; background: #e23b3b; border-color: #a82424; }
+.tile-menu button:active { transform: translateY(1px); }
